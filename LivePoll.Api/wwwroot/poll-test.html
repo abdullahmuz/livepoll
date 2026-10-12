@@ -1,0 +1,124 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>LivePoll SignalR test</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 640px;
+            margin: 2rem auto;
+        }
+
+        .q {
+            margin: 1.25rem 0;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            margin: .25rem 0;
+        }
+
+        .label {
+            width: 140px;
+        }
+
+        .bar {
+            height: 18px;
+            background: #4f46e5;
+            transition: width .3s;
+        }
+
+        #log {
+            color: #666;
+            font-size: .85rem;
+            white-space: pre-wrap;
+            margin-top: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <h2>LivePoll live results (test page)</h2>
+    <input id="code" placeholder="Join code" />
+    <button id="connect">Connect</button>
+    <h3 id="title"></h3>
+    <div id="results"></div>
+    <div id="log"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+    <script>
+    const log = m => document.getElementById('log').textContent += m + '\n';
+    let connection, currentCode;
+    let session = { title: '', closed: false, questions: [] };
+
+    function render() {
+      document.getElementById('title').textContent = session.title + (session.closed ? ' (closed)' : '');
+      const root = document.getElementById('results');
+      root.replaceChildren();
+      for (const q of session.questions) {
+        const box = document.createElement('div');
+        box.className = 'q';
+        const heading = document.createElement('strong');
+        heading.textContent = `${q.text} (${q.totalVotes} votes)`;
+        box.appendChild(heading);
+        for (const o of q.options) {
+          const row = document.createElement('div');
+          row.className = 'row';
+          const label = document.createElement('span');
+          label.className = 'label';
+          label.textContent = o.text;
+          const bar = document.createElement('div');
+          bar.className = 'bar';
+          bar.style.width = (o.percentage * 3) + 'px';
+          const pct = document.createElement('span');
+          pct.textContent = `${o.percentage}% (${o.votes})`;
+          row.append(label, bar, pct);
+          box.appendChild(row);
+        }
+        root.appendChild(box);
+      }
+    }
+
+    async function join() {
+      const results = await connection.invoke('JoinSession', currentCode);
+      session = { title: results.title, closed: !results.isActive, questions: results.questions };
+      render();
+      log('joined ' + currentCode);
+    }
+
+    document.getElementById('connect').onclick = async () => {
+      currentCode = document.getElementById('code').value.trim();
+
+      connection = new signalR.HubConnectionBuilder()
+        .withUrl('/hubs/poll')
+        .withAutomaticReconnect()
+        .build();
+
+      connection.on('QuestionResultsUpdated', q => {
+        const i = session.questions.findIndex(x => x.questionId === q.questionId);
+        if (i >= 0) session.questions[i] = q;
+        log('live update for question ' + q.questionId);
+        render();
+      });
+
+      connection.on('SessionClosed', () => {
+        session.closed = true;
+        log('host closed the session');
+        render();
+      });
+
+      connection.onreconnecting(() => log('connection lost, reconnecting...'));
+      connection.onreconnected(async () => { log('reconnected, rejoining group'); await join(); });
+
+      try {
+        await connection.start();
+        await join();
+      } catch (e) {
+        log('Error: ' + e.message);
+      }
+    };
+    </script>
+</body>
+</html>
