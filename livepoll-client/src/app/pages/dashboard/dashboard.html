@@ -1,0 +1,3 @@
+<h2>Welcome, {{ auth.user()?.userName }}</h2>
+<p>Your polls will show up here soon.</p>
+<button (click)="auth.logout()">Log out</button>

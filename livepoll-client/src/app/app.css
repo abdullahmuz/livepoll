@@ -1,0 +1,23 @@
+:host {
+  display: block;
+  font-family: system-ui, sans-serif;
+  color: #1f2937;
+}
+
+.topbar {
+  padding: 0.9rem 1.5rem;
+  background: #4f46e5;
+}
+
+.brand {
+  color: white;
+  font-weight: 700;
+  font-size: 1.2rem;
+  text-decoration: none;
+}
+
+.container {
+  max-width: 720px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}

@@ -60,6 +60,14 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<IParticipantService, ParticipantService>();
 builder.Services.AddSignalR();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy => policy
+        .WithOrigins("http://localhost:4200")
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials());
+});
 
 var app = builder.Build();
 
@@ -71,6 +79,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();            // lets us serve a small test page, explained below
+app.UseCors("Frontend");      // must come before authentication and the endpoint mappings
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
